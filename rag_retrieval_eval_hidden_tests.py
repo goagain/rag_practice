@@ -23,6 +23,21 @@ def _as_str_list(values):
     return [str(value) for value in list(values)]
 
 
+def _is_id_sequence(values):
+    """Accept a Python list or a one-dimensional array of document ids."""
+    if isinstance(values, (str, bytes)):
+        return False
+    if isinstance(values, np.ndarray):
+        if values.ndim != 1:
+            return False
+        items = values.tolist()
+    elif isinstance(values, (list, tuple)):
+        items = list(values)
+    else:
+        return False
+    return all(isinstance(item, str) for item in items)
+
+
 # Objective points. Performance (15) and style (15) are not decided here.
 _LOGIC_POINTS = {
     "build_doc_embeddings": 10,
@@ -51,7 +66,7 @@ _LOGIC_CHECKS = {
         "cosine_zero_query",
     ],
     "top_k_doc_ids": [
-        "topk_is_list_of_str",
+        "topk_id_sequence",
         "topk_order",
         "topk_k_gt_n",
         "topk_large_order",
@@ -165,7 +180,7 @@ def _test_topk(runner):
         runner.failures.append(f"topk_order: {type(exc).__name__}: {exc}")
         return
     expected = _ranked_ids(q, D, ids)[:4]
-    runner.check("topk_is_list_of_str", isinstance(got, list) and all(type(item) is str for item in got), type(got))
+    runner.check("topk_id_sequence", _is_id_sequence(got), type(got))
     runner.check("topk_order", _as_str_list(got) == expected, f"got {_as_str_list(got)}, expected {expected}")
 
     try:
@@ -176,7 +191,7 @@ def _test_topk(runner):
     expected_all = _ranked_ids(q, D, ids)
     runner.check(
         "topk_k_gt_n",
-        isinstance(got_all, list) and _as_str_list(got_all) == expected_all,
+        _is_id_sequence(got_all) and _as_str_list(got_all) == expected_all,
         f"got {_as_str_list(got_all)}, expected {expected_all}",
     )
 
